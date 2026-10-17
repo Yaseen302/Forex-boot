@@ -12,7 +12,7 @@ def execute_demo(bridge,store,symbol,frames,enabled=False):
     terminal=bridge.connect()
     a=bridge.account()
     if a.trade_mode!=mt.ACCOUNT_TRADE_MODE_DEMO: raise ValueError('Only broker-confirmed DEMO accounts are supported; live is blocked')
-    if not a.trade_allowed or not a.trade_expert or not terminal.trade_allowed:
+    if not a.trade_allowed or not a.trade_expert or not terminal.trade_allowed or getattr(terminal,'tradeapi_disabled',False):
         raise ValueError('Account/terminal automated trading permission is disabled')
     limits=configured_limits()
     if store.get('emergency',False): raise ValueError('Emergency stop active')
@@ -25,6 +25,8 @@ def execute_demo(bridge,store,symbol,frames,enabled=False):
     if s['side']=='WAIT': raise ValueError('; '.join(s['reasons']))
     info=mt.symbol_info(symbol); tick=mt.symbol_info_tick(symbol)
     if info is None or tick is None: raise ValueError('Broker quote/specification unavailable')
+    if getattr(info,'trade_mode',4)!=getattr(mt,'SYMBOL_TRADE_MODE_FULL',4):
+        raise ValueError('Symbol does not permit opening both buy and sell trades')
     if not all(math.isfinite(float(x)) and float(x)>0 for x in (info.point,info.trade_tick_size,tick.bid,tick.ask)) or tick.ask<tick.bid:
         raise ValueError('Invalid broker quote/specification')
     positions=mt.positions_get(); orders=mt.orders_get()
@@ -61,6 +63,43 @@ def execute_demo(bridge,store,symbol,frames,enabled=False):
     current=bridge.account()
     if current.login!=a.login or current.server!=a.server or current.trade_mode!=mt.ACCOUNT_TRADE_MODE_DEMO:
         raise ValueError('Account changed during order evaluation')
+    # Broker checks may block; refresh the real account, quote and exposure before
+    # committing to send. A local lock cannot prevent manual trades inside MT5.
+    terminal=bridge.connect()
+    if not current.trade_allowed or not current.trade_expert or not terminal.trade_allowed or getattr(terminal,'tradeapi_disabled',False):
+        raise ValueError('Automated trading permission changed during evaluation')
+    fresh=mt.symbol_info_tick(symbol)
+    exposure=mt.positions_get(); pending=mt.orders_get()
+    if fresh is None or exposure is None or pending is None:
+        raise ValueError('Pre-submission broker state unavailable')
+    if not all(math.isfinite(float(x)) and float(x)>0 for x in (fresh.bid,fresh.ask)) or fresh.ask<fresh.bid:
+        raise ValueError('Invalid pre-submission quote')
+    fresh_entry=float(fresh.ask if s['side']=='BUY' else fresh.bid)
+    if abs(fresh_entry-entry)>limits.slippage_points*info.point+1e-12:
+        raise ValueError('Quote moved beyond the configured entry tolerance; wait for reevaluation')
+    fresh_loss=mt.order_calc_profit(kind,symbol,1.0,fresh_entry,stop)
+    fresh_slip=mt.order_calc_profit(kind,symbol,1.0,fresh_entry,
+                                  fresh_entry-limits.slippage_points*info.point if s['side']=='BUY' else fresh_entry+limits.slippage_points*info.point)
+    if fresh_loss is None or fresh_slip is None or not all(math.isfinite(x) for x in (fresh_loss,fresh_slip)) or fresh_loss>=0:
+        raise ValueError('Pre-submission risk calculation unavailable')
+    fresh_size=size(current.equity,abs(fresh_loss)+abs(fresh_slip)+limits.commission_per_lot,
+                    info.volume_min,info.volume_max,info.volume_step,limits.risk_percent)
+    if not fresh_size['ok'] or sizing['volume']>fresh_size['volume']+1e-12:
+        raise ValueError('Risk budget changed during order evaluation; reevaluation required')
+    fresh_margin=mt.order_calc_margin(kind,symbol,sizing['volume'],fresh_entry)
+    if fresh_margin is None: raise ValueError('Pre-submission margin unavailable')
+    anchors=store.anchors(f'{current.server}:{current.login}',current.equity)
+    now=time.time()
+    if not 0<=now-close_time(frames['M30'][-1],'M30')<=300:
+        raise ValueError('M30 entry window expired during evaluation')
+    reasons=guards(equity=current.equity,day_equity=anchors['day_equity'],peak_equity=anchors['peak_equity'],
+                   positions=len(exposure)+len(pending),spread_points=(fresh.ask-fresh.bid)/info.point,
+                   tick_age=now-fresh.time,margin_free=current.margin_free,margin_needed=fresh_margin,
+                   entry=fresh_entry,stop=stop,target=target,side=s['side'],
+                   news_clear=store.get('news_clear_until',0)>now,emergency=store.get('emergency',False),limits=limits)
+    if reasons: raise ValueError('; '.join(reasons))
+    sizing=dict(sizing,equity_at_submission=current.equity,
+                estimated_loss=sizing['volume']*(abs(fresh_loss)+abs(fresh_slip)+limits.commission_per_lot))
     store.reserve(key,request)
     # From this point an exception/ambiguous response intentionally leaves a durable pending record.
     result=mt.order_send(request)

@@ -1,8 +1,9 @@
-param([ValidateSet('synthetic','mt5')][string]$Source='synthetic',[switch]$EnableDemo)
+param([ValidateSet('synthetic','mt5')][string]$Source='synthetic',[switch]$EnableDemo,[string]$TerminalPath='')
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 if (!(Test-Path '.venv\Scripts\python.exe')) { throw 'Run setup-windows.ps1 first' }
 if ($EnableDemo -and $Source -ne 'mt5') { throw 'Demo orders require MT5 data' }
+if ($TerminalPath) { $env:MT5_TERMINAL_PATH=$TerminalPath }
 $env:DATA_SOURCE=$Source
 $env:ENABLE_DEMO_EXECUTION=if ($EnableDemo) { '1' } else { '0' }
 $env:API_TOKEN=& .\.venv\Scripts\python.exe -c 'import secrets; print(secrets.token_urlsafe(32))'

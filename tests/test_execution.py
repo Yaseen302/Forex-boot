@@ -91,3 +91,29 @@ def test_deal_history_must_confirm(harness):
 def test_position_limit_covers_other_symbols(harness):
     harness[4].positions_get=lambda:[NS(symbol='XAUUSD')]
     with pytest.raises(ValueError,match='Position limit'):call(harness)
+
+
+@pytest.mark.parametrize('changed,reason',[
+    ('equity','Risk budget changed'),
+    ('positions','Position limit'),
+    ('spread','Spread filter'),
+    ('stale','Stale quote'),
+    ('permission','permission changed'),
+    ('news','News clearance'),
+    ('quote','entry tolerance'),
+])
+def test_broker_check_changes_are_revalidated_before_send(harness,changed,reason):
+    bridge,store,_,account,mt=harness
+    def check(request):
+        if changed=='equity': account.equity=100
+        elif changed=='positions': mt.positions_get=lambda:[NS(symbol='OTHER')]
+        elif changed=='spread': mt.symbol_info_tick=lambda s:NS(bid=1.0997,ask=1.1001,time=int(time.time()))
+        elif changed=='stale': mt.symbol_info_tick=lambda s:NS(bid=1.1,ask=1.1001,time=int(time.time())-100)
+        elif changed=='permission': bridge.connect().tradeapi_disabled=True
+        elif changed=='news': store.set('news_clear_until',0)
+        elif changed=='quote': mt.symbol_info_tick=lambda s:NS(bid=1.101,ask=1.1011,time=int(time.time()))
+        return NS(retcode=0)
+    mt.order_check=check
+    mt.order_send=lambda r:pytest.fail('Changed broker state must prevent submission')
+    with pytest.raises(ValueError,match=reason): call(harness)
+    assert store.orders()==[]

@@ -27,6 +27,7 @@ def run(candles,initial=1000.,spread=.00012,slippage=.00005,commission=7.,swap_p
     dcloses=[x['time']+86400 for x in daily]; hcloses=[x['time']+14400 for x in h4]
     cached={}; cache_keys={}
     for i,c in enumerate(candles):
+        had_position_at_open=position is not None
         current_day=c['time']//86400
         if current_day!=day: day=current_day; day_start=equity
         if position:
@@ -47,12 +48,19 @@ def run(candles,initial=1000.,spread=.00012,slippage=.00005,commission=7.,swap_p
                 position=None
         peak=max(peak,equity)
         max_dd=max(max_dd,(peak-equity)/peak*100)
-        if position or i<1500 or i==len(candles)-1: continue
+        # A carried position's intrabar exit is known only after the open.
+        # Its later proceeds cannot fund a replacement entry at that earlier open.
+        if had_position_at_open or position or i<1500 or i==len(candles)-1: continue
         if equity<=0 or (day_start-equity)/day_start*100>=2 or (peak-equity)/peak*100>=5: continue
         # Signal available before current candle opens. Only fully closed higher frames.
         di=bisect_right(dcloses,c['time']); hi=bisect_right(hcloses,c['time'])
         frames={'M30':candles[max(0,i-300):i], 'H4':h4[max(0,hi-300):hi], 'D1':daily[max(0,di-300):di]}
         if any(len(cs)<30 for cs in frames.values()): continue
+        # Match the live adapter's entry freshness rather than replay a Friday
+        # setup at Monday's opening quote after a history/market closure gap.
+        if any(not 0<=c['time']-(frames[tf][-1]['time']+seconds)<=age
+               for tf,seconds,age in [('M30',1800,300),('H4',14400,14400),('D1',86400,86400)]):
+            continue
         for tf,k in [('D1',di),('H4',hi)]:
             if cache_keys.get(tf)!=k:
                 cached[tf]=analyze(frames[tf]);cache_keys[tf]=k

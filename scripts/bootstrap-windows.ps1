@@ -1,5 +1,8 @@
-param([string]$ProjectPath=(Join-Path $env:USERPROFILE 'ForexLab'))
+param([string]$ProjectPath=(Join-Path $env:USERPROFILE 'ForexLab'),[ValidateSet('synthetic','mt5')][string]$Source='synthetic')
 $ErrorActionPreference='Stop'
+if (Get-NetTCPConnection -State Listen -LocalPort 8000 -ErrorAction SilentlyContinue) {
+ throw 'ForexLab port 8000 is already in use. Press Ctrl+C in the previous server window before running setup/update. No process was stopped.'
+}
 if (!(Get-Command winget.exe -ErrorAction SilentlyContinue)) {
  throw 'winget is unavailable. Install Microsoft App Installer from Microsoft Store, reopen PowerShell and run again.'
 }
@@ -56,5 +59,5 @@ if (Test-Path $ProjectPath) {
 Set-Location $ProjectPath
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ProjectPath 'scripts\setup-windows.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'Project setup failed; send the last error shown.' }
-Write-Host "Project saved at $ProjectPath. Starting synthetic dashboard; no broker orders are enabled."
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ProjectPath 'scripts\start-windows.ps1')
+Write-Host "Project saved at $ProjectPath. Starting $Source analysis; no broker orders are enabled."
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ProjectPath 'scripts\start-windows.ps1') -Source $Source

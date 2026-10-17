@@ -1,18 +1,33 @@
 """Official MT5 integration. All calls must be serialized by the API lock."""
 import platform
-import time
-from .market import TIMEFRAMES, validate
+import os
+from .market import validate
 
 class MT5Bridge:
-    def __init__(self):
+    def __init__(self, terminal_path=None):
         if platform.system()!='Windows': raise RuntimeError('MT5 requires Windows with the desktop terminal running')
         import MetaTrader5
         self.mt=MetaTrader5
+        self.terminal_path=terminal_path or os.environ.get('MT5_TERMINAL_PATH') or None
+        self._initialized=False
     def connect(self):
-        if not self.mt.initialize(): raise RuntimeError('MT5 initialize failed; open terminal and check login')
+        # Keep the selected terminal for this bridge lifetime. Re-initializing each
+        # data call can silently attach to a different installation on Windows.
+        if not self._initialized:
+            args=(self.terminal_path,) if self.terminal_path else ()
+            if not self.mt.initialize(*args):
+                raise RuntimeError('MT5 initialize failed; open the correct desktop terminal and check MT5_TERMINAL_PATH')
+            self._initialized=True
         terminal=self.mt.terminal_info()
-        if terminal is None or not terminal.connected: raise RuntimeError('MT5 terminal disconnected')
+        if terminal is None:
+            self._initialized=False
+            raise RuntimeError('MT5 terminal unavailable; open it and retry the connection check')
+        if not terminal.connected: raise RuntimeError('MT5 terminal disconnected; check its broker login and connection')
         return terminal
+    def diagnostics(self,symbol='EURUSD',count=300,now=None):
+        """Read-only preflight; never selects symbols or submits/checks orders."""
+        from .diagnostics import connection_report
+        return connection_report(self,symbol,count=count,now=now)
     def account(self):
         self.connect()
         a=self.mt.account_info()

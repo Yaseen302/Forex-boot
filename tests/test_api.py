@@ -82,3 +82,20 @@ def test_worker_records_failure_without_retry_loop(client,monkeypatch):
     api.automation_worker(Stop())
     events=api.store.events()
     assert len(events)==1 and events[0]['kind']=='automation_wait'
+
+
+def test_chart_response_includes_price_grid(client):
+    r=client.get('/api/candles?symbol=EURUSD').json()
+    assert r['price_precision']==5 and r['price_min_move']==.00001
+    r=client.get('/api/candles?symbol=XAUUSD').json()
+    assert r['price_precision']==2 and r['price_min_move']==.01
+
+
+def test_mt5_chart_uses_broker_precision_not_symbol_guess(client,monkeypatch):
+    from types import SimpleNamespace as NS
+    from backend.market import synthetic
+    bridge=NS(candles=lambda *args:synthetic(),mt=NS(symbol_info=lambda name:NS(digits=3,trade_tick_size=.001)))
+    monkeypatch.setattr(api,'source','mt5')
+    monkeypatch.setattr(api,'get_bridge',lambda:bridge)
+    r=client.get('/api/candles?symbol=XAUUSDm').json()
+    assert r['price_precision']==3 and r['price_min_move']==.001

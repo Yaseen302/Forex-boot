@@ -29,3 +29,27 @@ def test_entry_candle_stop_first_and_costs(monkeypatch):
     assert all(t['reason']=='stop' and t['pnl']<0 for t in r['ledger'])
     assert r['net']==pytest.approx(sum(t['pnl'] for t in r['ledger']))
     assert r['final']<10000
+
+
+def test_carried_exit_cannot_fund_trade_at_same_candle_open(monkeypatch):
+    import backend.backtest as bt
+    cs=[dict(time=i*1800,open=1.1,high=1.1002,low=1.0998,close=1.1,volume=10.) for i in range(1603)]
+    cs[1501]['high']=1.105
+    monkeypatch.setattr(bt,'signal',lambda frames,**kw:dict(side='BUY',stop=1.099,target=1.104,time=frames['M30'][-1]['time']))
+    r=run(cs,initial=10000,spread=0,slippage=0,commission=0)
+    assert r['ledger'][0]['time']==cs[1500]['time']
+    assert r['ledger'][0]['exit_time']==cs[1501]['time']
+    assert not any(t['time']==cs[1501]['time'] for t in r['ledger'])
+
+
+def test_history_gap_cannot_replay_old_m30_signal(monkeypatch):
+    import backend.backtest as bt
+    cs=[dict(time=i*1800,open=1.1,high=1.1002,low=1.0998,close=1.1,volume=10.) for i in range(1603)]
+    for i in range(1501,len(cs)): cs[i]['time']+=3*86400
+    def only_old_setup(frames,**kw):
+        if frames['M30'][-1]['time']==1500*1800:
+            return dict(side='BUY',stop=1.099,target=1.104,time=1500*1800)
+        return {'side':'WAIT'}
+    monkeypatch.setattr(bt,'signal',only_old_setup)
+    r=run(cs,spread=0,slippage=0,commission=0)
+    assert r['trades']==0

@@ -10,6 +10,8 @@ Push-Location frontend
 try {
  & npm.cmd ci --no-audit --no-fund
  if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+ & npm.cmd test
+ if ($LASTEXITCODE -ne 0) { throw 'Indicator/symbol regression checks failed' }
  & npm.cmd run build
  if ($LASTEXITCODE -ne 0) { throw 'Dashboard build failed' }
 } finally { Pop-Location }

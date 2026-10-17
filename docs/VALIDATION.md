@@ -3,9 +3,9 @@
 ## Verified in this Linux cloud instance
 
 - Python 3.12 virtual environment installation, pinned Python package installation and repeatable npm lockfile installation.
-- 61 automated tests: risk caps, invalid inputs, non-decimal lot steps, small-account skip, daily loss/drawdown, position/spread/margin/news/stale-quote/emergency guards, all timeframe fixture analysis, pivot confirmation, FVG mitigation, candle validation, persistent duplicates/pending orders, account anchors, authenticated API, no live endpoint, demo-account rejection of live, submission ambiguity and broker-deal verification using fakes, automation idle/failure handling, and backtest signal timing/stop-first costs.
-- Production TypeScript/Vite build.
-- Headless Chromium desktop (1440 px) and mobile (390 px): login, candle chart, timeframe switching, indicator controls, price/time rectangle drawing with local persistence, emergency entry stop and release, mobile layout without horizontal overflow, token cleared on browser reload. Browser errors: none on final check.
+- 107 automated backend tests (including the original61): risk caps, invalid inputs, non-decimal lot steps, small-account skip, daily loss/drawdown, position/spread/margin/news/stale-quote/emergency guards, all timeframe fixture analysis, pivot confirmation, FVG mitigation, candle validation, persistent duplicates/pending orders, account anchors, authenticated API, no live endpoint, demo-account rejection of live, submission ambiguity and broker-deal verification using fakes, automation idle/failure handling, and backtest signal timing/stop-first costs.
+- Production TypeScript/Vite build plus7 frontend numerical/symbol regression tests (SMA/EMA/Bollinger/Wilder RSI/MACD fixtures, validation, causal history and exact broker selection).
+- Headless Chromium desktop (1440 px) and mobile (320/390 px): login, candle chart, timeframe switching, indicator controls, price/time rectangle drawing with local persistence/undo, independent indicator settings and RSI/MACD panes, corner logo absent with visible attribution, mobile Charts/Analysis/Trade/Journal tabs, emergency entry stop and release, mobile layout without horizontal overflow, token cleared on browser reload. Simulated suffix/history-error/disconnect scenarios verified exact-symbol requests and recoverable selection/diagnostics. Browser errors: none on final check.
 - Running FastAPI serves the built dashboard and authenticated market-analysis requests. Synthetic prices are clearly labelled.
 - 8,200 synthetic M30 candles processed through the backtest and chronological/rolling evaluator. `reports/synthetic-engine-check.json` is an engine-check report, **not** a market-performance report. A synthetic trade or no-trade period does not establish a profitable strategy.
 - Official MetaTrader5 5.0.5488 CPython 3.11 Windows x64 wheel is available from PyPI. It is not runnable in this Linux cloud.
@@ -13,7 +13,7 @@
 
 ## Not executed / external prerequisites
 
-- Windows PowerShell setup/start scripts, installation on the user's physical Windows 11 PC and Exness desktop MT5 connection have not been executed here. The scripts and tailored instructions are supplied for that machine.
+- Windows PowerShell setup/start scripts, installation on the user's physical Windows 11 PC and Exness desktop MT5 connection have not been executed here. The user supplied a Windows screenshot showing the initial version installed,61 tests passed and the server running, and confirmed Exness demo login. The upgraded version and actual broker connection still need verification on that machine.
 - Broker account permissions, real contract/tick/volume specs, terminal restarts/reconnection, actual demo orders, live broker retcodes/deal-history propagation and broker SL/TP behavior need Windows/Exness acceptance testing. Mock tests do not establish these work with Exness.
 - No real broker history or economic-calendar feed was provided. There is no real-price backtest, profitability evidence, statistical significance assessment or four-day demo observation yet. The computer and MT5 must remain running during demo monitoring.
 - Fixed UTC OHLC resampling, constant costs and closed-equity drawdown are research approximations, not a broker-accurate tick simulator. See `RULES.md` before interpreting reports.
@@ -24,7 +24,7 @@
 - Validate broker execution and long-term strategy behavior on real history across market regimes. Refine entry definitions only with held-out evaluation.
 - Integrate and test a real news/session calendar before unattended extended operation; manual clearances last at most 15 minutes.
 - General multi-currency backtesting, intratrade equity/margin simulation, broker calendar alignment and accurate variable spread/swap modelling.
-- Additional discretionary ICT/SMC concepts, historical order-block lifecycles, equal-high/low pools, optional M5/M15 confirmation, more indicators and richer drawing editing.
+- Additional discretionary ICT/SMC concepts, historical order-block lifecycles, equal-high/low pools, optional M5/M15 confirmation and richer drawing editing.
 - ML probability model with purged chronological splits, calibration and walk-forward baseline comparison, **after** the fixed strategy is validated. No ML model is trained or used by this implementation.
 - Multi-user/account isolation, licensing/subscriptions, PostgreSQL migration, authenticated production deployment and commercial/legal review.
 - Real-money execution is deliberately unavailable. Four demo days cannot justify an automatic live/public launch.

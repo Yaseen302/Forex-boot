@@ -1,4 +1,5 @@
 import hmac
+import math
 import os
 import threading
 import time
@@ -95,7 +96,7 @@ def status():
     with lock:
         account=get_bridge().status() if source=='mt5' else dict(connected=False,demo=False,equity=1000,currency='USD',positions=[],pending_orders=0)
         if source=='mt5': store.anchors(account['server']+':'+account['account'],account['equity'])
-        return dict(source=source,mode='demo automation' if store.get('automation_enabled',False) else 'analysis',automation_enabled=store.get('automation_enabled',False),demo_execution_enabled=source=='mt5' and os.environ.get('ENABLE_DEMO_EXECUTION')=='1',
+        return dict(source=source,mode='demo automation' if store.get('automation_enabled',False) else 'analysis',automation_enabled=store.get('automation_enabled',False),automation_symbol=store.get('automation_symbol'),demo_execution_enabled=source=='mt5' and os.environ.get('ENABLE_DEMO_EXECUTION')=='1',
                     live_execution=False,emergency=store.get('emergency',False),news_clear_until=store.get('news_clear_until',0),account=account,
                     timeframes=list(TIMEFRAMES),limits=asdict(configured_limits()))
 
@@ -103,12 +104,32 @@ def status():
 def symbols():
     with lock: return get_bridge().symbols() if source=='mt5' else ['EURUSD','XAUUSD']
 
+@app.get('/api/connection',dependencies=[Depends(auth)])
+def connection(symbol:str=Query('EURUSD',min_length=1,max_length=64)):
+    """Read-only preflight; never places a broker order or enables automation."""
+    with lock:
+        if source!='mt5':
+            return dict(source=source,connected=False,ready_for_data=False,ready_for_demo=False,
+                        checks=[dict(id='source',status='warn',title='Synthetic data source',
+                                     detail='Start Windows MT5 analysis mode to check the Exness terminal.',
+                                     action='Use start-windows.ps1 -Source mt5 with the MT5 desktop open.')])
+        return dict(source=source,**get_bridge().diagnostics(symbol))
+
 @app.get('/api/candles',dependencies=[Depends(auth)])
 def get_candles(symbol:str=Query('EURUSD',min_length=1,max_length=64),tf:str='M30',count:int=Query(300,ge=30,le=2000)):
     if tf not in TIMEFRAMES: raise ValueError('Unsupported timeframe')
     with lock:
         cs=candles(symbol,tf,count)
-        return dict(source=source,symbol=symbol,timeframe=tf,candles=cs,analysis=analyze(cs))
+        if source=='mt5':
+            info=get_bridge().mt.symbol_info(symbol)
+            if info is None or not isinstance(info.digits,int) or not 0<=info.digits<=10 or not math.isfinite(info.trade_tick_size) or info.trade_tick_size<=0:
+                raise RuntimeError('Broker price precision/tick grid unavailable')
+            precision=info.digits; min_move=info.trade_tick_size
+        else:
+            precision=2 if 'XAU' in symbol else 3 if 'JPY' in symbol else 5
+            min_move=10**-precision
+        return dict(source=source,symbol=symbol,timeframe=tf,price_precision=precision,price_min_move=min_move,
+                    candles=cs,analysis=analyze(cs))
 
 @app.get('/api/analysis',dependencies=[Depends(auth)])
 def analysis(symbol:str=Query('EURUSD',min_length=1,max_length=64)):

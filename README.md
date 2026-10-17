@@ -30,11 +30,11 @@ Use the existing checkout; cloud tasks are already isolated. Do not create anoth
 
 ## Included
 
-- All 21 official MT5 timeframes, closed-candle charting, EMA/SMA/Bollinger settings, persistent trendline, Fibonacci and rectangle drawings.
+- All 21 official MT5 timeframes, closed-candle charting, independent EMA/SMA/Bollinger/RSI/MACD settings and panels, persistent trendline, Fibonacci and rectangle drawings. Mobile Charts/Analysis/Trade/Journal navigation. The chart corner logo is disabled through supported configuration; attribution remains in the footer.
 - Deterministic confirmed pivots, HH/HL and LH/LL trend, BOS/CHoCH candidates, FVG and current-break order-block candidates, liquidity sweeps, support/resistance and aligned D1/H4/M30 entries.
 - Decimal lot-step sizing, 0.25% default equity risk, minimum 2R at execution, 2% daily loss/5% drawdown entry stops, one account-wide position/order, spread/stale quote/margin checks and persistent emergency entry stop.
 - Explicit demo-only execution through broker `order_check`, FOK `order_send` and deal-history verification. Persistent duplicate and uncertain-submission protection.
-- SQLite controls, orders and event journal; session API authentication for all data and control endpoints.
+- SQLite controls, orders and event journal; session API authentication for all data and control endpoints. Read-only MT5 connection preflight checks exact symbols, contract specifications, terminal/account permissions, quote/history freshness and adapter support.
 - M30 OHLC cost-aware backtester and fixed-rule chronological/rolling evaluation tools. No real-price profitability report is supplied because broker history has not been provided.
 
 ## Test and research
@@ -42,6 +42,7 @@ Use the existing checkout; cloud tasks are already isolated. Do not create anoth
 ```bash
 .venv/bin/python -m pytest -q
 cd frontend
+npm test
 npm run build
 ```
 
