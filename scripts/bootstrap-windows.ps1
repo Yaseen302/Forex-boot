@@ -12,18 +12,35 @@ function Install-Tool([string]$Id) {
  if ($LASTEXITCODE -notin @(0,3010,-1978335189)) { throw "Installation failed for $Id (exit $LASTEXITCODE). Send this error; do not keep retrying blindly." }
  Refresh-Path
 }
-if (!(Get-Command git.exe -ErrorAction SilentlyContinue)) { Install-Tool 'Git.Git' }
-if (!(Get-Command py.exe -ErrorAction SilentlyContinue)) { Install-Tool 'Python.Python.3.11' } else {
- & py -3.11 --version 2>$null
- if ($LASTEXITCODE -ne 0) { Install-Tool 'Python.Python.3.11' }
+function Test-Python311 {
+ $launcher=Get-Command py.exe -ErrorAction SilentlyContinue
+ if (!$launcher) { return $false }
+ # Windows PowerShell 5.1 can turn redirected native stderr into a terminating
+ # NativeCommandError. Probe through Process so missing Python is a normal false.
+ $probe=New-Object System.Diagnostics.Process
+ $probe.StartInfo.FileName=$launcher.Source
+ $probe.StartInfo.Arguments='-3.11 --version'
+ $probe.StartInfo.UseShellExecute=$false
+ $probe.StartInfo.CreateNoWindow=$true
+ $probe.StartInfo.RedirectStandardOutput=$true
+ $probe.StartInfo.RedirectStandardError=$true
+ try {
+  [void]$probe.Start()
+  $stdout=$probe.StandardOutput.ReadToEnd()
+  $stderr=$probe.StandardError.ReadToEnd()
+  $probe.WaitForExit()
+  return ($probe.ExitCode -eq 0 -and ($stdout+$stderr) -match 'Python 3\.11\.')
+ } catch { return $false } finally { $probe.Dispose() }
 }
+if (!(Get-Command git.exe -ErrorAction SilentlyContinue)) { Install-Tool 'Git.Git' }
+if (!(Test-Python311)) { Install-Tool 'Python.Python.3.11' }
 if (!(Get-Command node.exe -ErrorAction SilentlyContinue)) { Install-Tool 'OpenJS.NodeJS.LTS' }
 Refresh-Path
 if (!(Get-Command git.exe -ErrorAction SilentlyContinue)) { throw 'Git installation requires reopening PowerShell; reopen and rerun this script.' }
 if (!(Get-Command py.exe -ErrorAction SilentlyContinue)) { throw 'Python launcher requires reopening PowerShell; reopen and rerun this script.' }
 if (!(Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw 'Node.js requires reopening PowerShell; reopen and rerun this script.' }
+if (!(Test-Python311)) { throw 'Python 3.11 is not available; reopen PowerShell after installation and rerun this script.' }
 & py -3.11 --version
-if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 is not available; reopen PowerShell after installation.' }
 if (Test-Path $ProjectPath) {
  if (!(Test-Path (Join-Path $ProjectPath '.git'))) { throw "Folder $ProjectPath already exists and is not a Git checkout. It was preserved. Choose another -ProjectPath." }
  $existingRemote=& git.exe -C $ProjectPath remote get-url origin
