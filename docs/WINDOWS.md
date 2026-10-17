@@ -74,7 +74,7 @@ Four days ke results ko long-term profitability ka saboot ya commercial launch a
 
 ## 6. Mobile / VPS
 
-Pehle local Windows workflow verify karein. Backend default sirf loopback par sunta hai. Phone access ke liye Tailscale ka supported private route ya authenticated HTTPS tunnel configure karein; raw port forward na karein. Backend bearer token har private API endpoint par zaroori hai. Tailscale/Cloudflare, Windows VPS, domain/SSL is delivery mein install/configure nahi kiye gaye. Multi-user public hosting is single-account prototype ka supported mode nahi.
+Pehle local Windows workflow verify karein. Backend default sirf loopback par sunta hai. Phone access ke liye Tailscale ka supported private route ya authenticated HTTPS tunnel configure karein; raw port forward na karein. Backend bearer token har private API endpoint par zaroori hai. Tailscale/Cloudflare, Windows VPS, domain/SSL is delivery mein install/configure nahi kiye gaye. Private mobile setup ka optional helper aur Android/iPhone instructions ab docs/MOBILE.md mein diye hain; unhein aapke devices par chalana aur verify karna baqi hai. Multi-user public hosting is single-account prototype ka supported mode nahi.
 
 ## Updated mobile terminal and Exness connection checks
 
@@ -121,4 +121,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-windows.ps1 
 
 Select the exact broker symbol, inspect account/demo mode and connection checks, review the economic calendar yourself, grant a 15-minute news clearance and explicitly enable demo automation. The worker checks every 30 seconds, enters only on aligned fresh D1/H4/M30 signals, and never forces a trade to pass a test. Existing positions or a small-account minimum-lot conflict block new entries. Automation resets OFF on restart. No order is sent just by updating or running the connection checker.
 
-The mobile layout works at phone widths. A phone's own localhost is a different machine: actual phone access to the Windows backend still needs a private authenticated HTTPS route such as Tailscale Serve; that network deployment is not installed by this update. Do not expose the raw API port publicly.
+The mobile layout works at phone widths. A phone's own localhost is a different machine: actual phone access to the Windows backend still needs a private authenticated HTTPS route such as Tailscale Serve; that network deployment is not installed by this update. The optional scripts/enable-mobile.ps1 helper and docs/MOBILE.md now guide a private Tailscale Serve setup without opening the raw API port. Do not expose the raw API port publicly.

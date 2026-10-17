@@ -1,5 +1,6 @@
 """Operational preflight checks use a fake MT5 transport, never a broker account."""
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace as NS
 
 import pytest
@@ -82,6 +83,9 @@ def test_exact_demo_preflight_is_read_only_and_excludes_private_fields(bridge):
     for secret in ('12345678','Private Person','never-export-me'):
         assert secret not in serialized
     assert all(item['status']=='pass' for item in report['checks'])
+    assert report['market_activity']['state']=='fresh'
+    assert report['market_activity']['quote_age_seconds']==1
+    assert report['trading_blockers']==[]
 
 
 def test_missing_exact_symbol_suggests_suffix_without_disconnecting_terminal(bridge):
@@ -168,6 +172,66 @@ def test_weekend_or_stale_quotes_and_history_block_demo_without_faking_data(brid
     assert report['ready_for_data'] and not report['ready_for_demo']
     assert check(report,'quote')['status']=='fail'
     assert check(report,'freshness_M30')['status']=='fail'
+
+
+@pytest.mark.parametrize('date',['2026-10-17T12:00:00+00:00','2026-10-19T12:00:00+00:00'])
+def test_stale_quotes_separate_connection_and_history_from_execution_on_any_day(bridge,date):
+    now=datetime.fromisoformat(date).timestamp()
+    bridge.mt.tick.time=now-172800
+    for tf in bridge.mt.rates:
+        bridge.mt.rates[tf]=[dict(c,time=c['time']+int(now-NOW)-172800) for c in bridge.mt.rates[tf]]
+    report=bridge.diagnostics('EURUSDm',now=now)
+    assert report['connected'] and report['ready_for_data']
+    assert not report['ready_for_demo']
+    activity=report['market_activity']
+    assert activity['state']=='stale' and activity['quote_age_seconds']==172800
+    assert 'may be closed or the feed paused' in activity['notice']
+    assert 'remain connected' in activity['notice']
+    assert 'quote' in report['trading_blockers']
+    assert 'freshness_M30' in report['trading_blockers']
+    assert check(report,'terminal')['phase']=='connection'
+    assert check(report,'history_M30')['phase']=='history'
+    assert check(report,'history_M30')['status']=='pass'
+    assert check(report,'quote')['phase']==check(report,'freshness_M30')['phase']=='execution'
+    assert check(report,'quote')['status']==check(report,'freshness_M30')['status']=='fail'
+    json.dumps(report,allow_nan=False)
+
+
+def test_saturday_alone_does_not_identify_a_closed_session(bridge):
+    now=datetime(2026,10,17,12,tzinfo=timezone.utc).timestamp()
+    bridge.mt.tick.time=now-1
+    report=bridge.diagnostics('EURUSDm',now=now)
+    assert report['market_activity']['state']=='fresh'
+    assert 'does not confirm an open trading session' in report['market_activity']['notice']
+
+
+@pytest.mark.parametrize('tick',[None,NS(bid=float('nan'),ask=1.1,time=NOW),NS(bid=1.1,ask=1.2,time=float('inf'))])
+def test_unavailable_quote_preserves_connected_history_status_and_serializes_safely(bridge,tick):
+    bridge.mt.tick=tick
+    report=bridge.diagnostics('EURUSDm',now=NOW)
+    assert report['connected'] and report['ready_for_data'] and not report['ready_for_demo']
+    assert report['market_activity']['state']=='unavailable'
+    assert report['market_activity']['quote_age_seconds'] is None
+    assert 'quote' in report['trading_blockers']
+    json.dumps(report,allow_nan=False)
+
+
+def test_overflowing_spread_is_unavailable_and_never_json_infinity(bridge):
+    bridge.mt.tick.bid=1e308
+    bridge.mt.tick.ask=1.7e308
+    bridge.mt.spec.point=1e-308
+    report=bridge.diagnostics('EURUSDm',now=NOW)
+    assert report['quote']['spread_points'] is None
+    assert check(report,'spread')['status']=='fail'
+    assert not report['ready_for_demo']
+    json.dumps(report,allow_nan=False)
+
+
+@pytest.mark.parametrize('now',[float('nan'),float('inf'),float('-inf')])
+def test_nonfinite_check_time_is_rejected_before_connecting(bridge,now):
+    with pytest.raises(ValueError,match='finite timestamp'):
+        bridge.diagnostics('EURUSDm',now=now)
+    assert not bridge.mt.initialize_calls
 
 
 def test_bad_history_and_short_history_have_clear_chart_loading_action(bridge):

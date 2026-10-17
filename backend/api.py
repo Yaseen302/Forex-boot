@@ -109,7 +109,10 @@ def connection(symbol:str=Query('EURUSD',min_length=1,max_length=64)):
     """Read-only preflight; never places a broker order or enables automation."""
     with lock:
         if source!='mt5':
-            return dict(source=source,connected=False,ready_for_data=False,ready_for_demo=False,
+            return dict(source=source,checked_at=time.time(),requested_symbol=symbol,resolved_symbol=None,candidates=[],
+                        connected=False,ready_for_data=False,ready_for_demo=False,
+                        market_activity=dict(state='unavailable',quote_age_seconds=None,
+                                             notice='Synthetic preview is not a broker connection. Start Windows MT5 analysis to inspect broker quotes.'),
                         checks=[dict(id='source',status='warn',title='Synthetic data source',
                                      detail='Start Windows MT5 analysis mode to check the Exness terminal.',
                                      action='Use start-windows.ps1 -Source mt5 with the MT5 desktop open.')])
@@ -197,6 +200,16 @@ def events(): return store.events()
 
 @app.get('/api/orders',dependencies=[Depends(auth)])
 def orders(): return store.orders()
+
+@app.get('/app.webmanifest',include_in_schema=False)
+def webmanifest():
+    return FileResponse(ROOT/'frontend'/'public'/'app.webmanifest',media_type='application/manifest+json')
+
+@app.get('/icons/{filename}',include_in_schema=False)
+def app_icon(filename:str):
+    if filename not in ('icon-192.png','icon-512.png','favicon.svg'):
+        raise HTTPException(404,'Icon not found')
+    return FileResponse(ROOT/'frontend'/'public'/'icons'/filename)
 
 if (ROOT/'frontend'/'dist'/'assets').exists():
     app.mount('/assets',StaticFiles(directory=ROOT/'frontend'/'dist'/'assets'),name='assets')

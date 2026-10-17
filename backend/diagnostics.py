@@ -17,7 +17,7 @@ def _number(value):
     try:
         result=float(value)
         return result if math.isfinite(result) else None
-    except (TypeError,ValueError):
+    except (TypeError,ValueError,OverflowError):
         return None
 
 
@@ -35,22 +35,29 @@ def connection_report(bridge,symbol='EURUSD',count=300,now=None):
         raise ValueError('Select an exact broker symbol name of 1–64 characters')
     if not isinstance(count,int) or isinstance(count,bool) or not 30<=count<=2000:
         raise ValueError('History check count must be between 30 and 2000')
-    now=time.time() if now is None else float(now)
+    now=time.time() if now is None else _number(now)
+    if now is None:
+        raise ValueError('Check time must be a finite timestamp')
     report=dict(checked_at=now,requested_symbol=symbol,resolved_symbol=None,candidates=[],
                 connected=False,ready_for_data=False,ready_for_demo=False,checks=[],
                 terminal=None,account=None,symbol=None,history={},positions=None,pending_orders=None,
+                market_activity=dict(state='unavailable',quote_age_seconds=None,
+                    notice='No valid broker quote is available. Connection and historical-data checks can still be inspected.'),
+                trading_blockers=[],
                 notice='Read-only connection check. No orders are sent. Passing is not a signal or profit guarantee.')
     data_ok=True
     demo_ok=True
 
-    def check(key,title,ok,detail,action=None,scope='demo',warning=False):
+    def check(key,title,ok,detail,action=None,scope='demo',warning=False,phase=None):
         nonlocal data_ok,demo_ok
         status='pass' if ok else ('warn' if warning else 'fail')
-        item=dict(id=key,title=title,status=status,detail=detail)
+        phase=phase or ('history' if key.startswith('history_') else 'connection' if scope=='data' else 'execution')
+        item=dict(id=key,title=title,status=status,detail=detail,phase=phase)
         if not ok and action: item['action']=action
         report['checks'].append(item)
         if not ok and not warning:
             demo_ok=False
+            report['trading_blockers'].append(key)
             if scope=='data': data_ok=False
 
     mt=bridge.mt
@@ -159,9 +166,9 @@ def connection_report(bridge,symbol='EURUSD',count=300,now=None):
         tick=None
     bid=_number(getattr(tick,'bid',None));ask=_number(getattr(tick,'ask',None));tick_time=_number(getattr(tick,'time',None))
     quote_valid=bid is not None and ask is not None and bid>0 and ask>=bid and tick_time is not None
-    age=now-tick_time if tick_time is not None else None
+    age=_number(now-tick_time) if tick_time is not None else None
     report['quote']=dict(bid=bid,ask=ask,time=tick_time,age_seconds=age,
-                         spread_points=(ask-bid)/specs['point'] if quote_valid and specs['point'] and specs['point']>0 else None)
+                         spread_points=_number((ask-bid)/specs['point']) if quote_valid and specs['point'] and specs['point']>0 else None)
     try:
         limits=configured_limits()
     except ValueError:
@@ -171,8 +178,15 @@ def connection_report(bridge,symbol='EURUSD',count=300,now=None):
           'Restore the documented risk environment defaults; risk caps must not be loosened.')
     max_age=limits.max_tick_age if limits else 30
     fresh=quote_valid and age is not None and 0<=age<=max_age
+    if fresh:
+        report['market_activity']=dict(state='fresh',quote_age_seconds=age,
+            notice='A fresh broker quote is available. This does not confirm an open trading session; all execution checks still apply.')
+    elif quote_valid and age is not None:
+        notice=('Broker quote time is ahead of the PC clock; check the clock before trading.' if age<0 else
+                'Market may be closed or the feed paused; the terminal can remain connected and historical charts can still be inspected. New trades remain blocked until fresh quotes return.')
+        report['market_activity']=dict(state='stale',quote_age_seconds=age,notice=notice)
     check('quote','Fresh broker quote',fresh,
-          f'Broker quote age is {age:.1f} seconds.' if quote_valid else 'No valid bid/ask quote is available.',
+          f'Broker quote age is {age:.1f} seconds.' if quote_valid and age is not None else 'No valid bid/ask quote is available.',
           'Wait for the forex market to reopen or check MT5 connectivity and the PC clock. Weekend/stale quotes block new trades.')
     spread=report['quote']['spread_points']
     if limits:
@@ -188,13 +202,13 @@ def connection_report(bridge,symbol='EURUSD',count=300,now=None):
             cs=[]
         history_ok=len(cs)>=30
         last_close=close_time(cs[-1],tf) if history_ok else None
-        bar_age=now-last_close if last_close is not None else None
+        bar_age=_number(now-last_close) if last_close is not None else None
         report['history'][tf]=dict(bars=len(cs),required_bars=30,requested_bars=count,last_closed_at=last_close,age_seconds=bar_age)
         check('history_'+tf,f'{tf} completed-candle history',history_ok,
               f'{len(cs)} valid completed {tf} candles loaded; minimum is 30.' if history_ok else f'Fewer than 30 valid completed {tf} candles are available.',
               f'Open the exact symbol {tf} chart in MT5, scroll back to load history, wait, then rerun this check.',scope='data')
-        check('freshness_'+tf,f'{tf} history freshness',history_ok and 0<=bar_age<=tolerance,
-              f'Last completed {tf} candle closed {bar_age:.0f} seconds ago.' if history_ok else 'History freshness cannot be checked yet.',
+        check('freshness_'+tf,f'{tf} history freshness',history_ok and bar_age is not None and 0<=bar_age<=tolerance,
+              f'Last completed {tf} candle closed {bar_age:.0f} seconds ago.' if history_ok and bar_age is not None else 'History freshness cannot be checked yet.',
               'Wait for market data and completed candles. Check the PC clock; market closure/weekends legitimately pause data.')
     report['ready_for_data']=data_ok
     report['ready_for_demo']=data_ok and demo_ok

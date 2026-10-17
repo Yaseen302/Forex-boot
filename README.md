@@ -56,4 +56,6 @@ On Windows use `.venv\Scripts\python.exe` instead. Export broker history using `
 
 `--swap 0` is appropriate only if the broker/account actually has zero overnight charges; otherwise use a conservative positive cost per lot/day. Other costs and limitations are described in [strategy and risk rules](docs/RULES.md).
 
+For Android/iPhone home-screen installation and private HTTPS access, see [mobile/weekend onboarding](docs/MOBILE.md). The terminal includes home-screen metadata/icons and a private Tailscale Serve helper; actual phone routing/login must be configured on your devices. Saturday connection tests separate historical charts from fresh-quote trading readiness.
+
 See [validation and remaining work](docs/VALIDATION.md). ML, commercial licensing, multi-user isolation, automatic economic-calendar ingestion and live trading are not implemented. A real broker connection, broker-specific execution, several market regimes and extended demo observation remain necessary before considering any live implementation.
