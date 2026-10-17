@@ -1,0 +1,34 @@
+{
+  "initial": 1000.0,
+  "final": 997.5055215051831,
+  "net": -2.494478494816917,
+  "trades": 1,
+  "entries": 1,
+  "skipped": 27,
+  "win_rate": 0.0,
+  "profit_factor": 0.0,
+  "expectancy": -2.494478494816917,
+  "max_closed_equity_drawdown_percent": 0.2494478494816917,
+  "assumptions": {
+    "spread": 0.00012,
+    "slippage": 5e-05,
+    "commission_per_lot_round_trip": 7.0,
+    "swap_per_lot_day": 0,
+    "contract": 100000.0
+  },
+  "warning": "Research simulator; no profitability evidence when using synthetic prices. Drawdown excludes intratrade floating equity. USD-quoted instruments in USD accounts only.",
+  "ledger": [
+    {
+      "side": "BUY",
+      "entry": 1.1846443222986927,
+      "stop": 1.182269843803876,
+      "target": 1.1899855185357344,
+      "volume": 0.01,
+      "time": 1787106600,
+      "exit_time": 1787115600,
+      "exit": 1.1822198438038758,
+      "pnl": -2.4944784948168617,
+      "reason": "stop"
+    }
+  ]
+}
