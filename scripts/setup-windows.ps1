@@ -15,6 +15,6 @@ try {
  & npm.cmd run build
  if ($LASTEXITCODE -ne 0) { throw 'Dashboard build failed' }
 } finally { Pop-Location }
-& .\.venv\Scripts\python.exe -m pytest -q
+& .\.venv\Scripts\python.exe -m pytest -q -ra
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed; resolve before demo connection' }
 Write-Host 'Installed and tested. Next: .\scripts\start-windows.ps1'

@@ -97,6 +97,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\update-windows.ps1
 
 The update script preserves local changes, tests Python/indicators, builds the terminal and starts **MT5 read-only analysis**. It refuses to run while port 8000 is occupied. Copy the new session token into the login screen; then Ctrl+F5 in the browser if an old layout remains. On Windows you can subsequently double-click `ForexLab.cmd` to choose preview, MT5 analysis, read-only connection test or explicit demo-control startup.
 
+Normal Windows accounts can deny symbolic-link creation with `WinError 1314`. Two native filesystem integration tests report an explicit **SKIPPED** reason in that case; this does not require changing Windows permissions. ID/path restrictions and the remaining checks still run, and every unexpected test failure still stops setup. These skipped checks are not reported as passes. Linux or a Windows account with symlink support runs them normally.
+
 ### Read-only broker preflight
 
 Keep Exness desktop MT5 open with the demo account logged in. Use the exact name from Market Watch. In the Trade view use **Check MT5 connection**, or in a separate terminal run:

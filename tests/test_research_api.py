@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
@@ -154,25 +154,30 @@ def test_only_one_job_can_run_and_server_restart_does_not_claim_success(subject,
     finally:restarted.executor.shutdown(wait=True)
 
 
-def test_ids_and_symlinks_cannot_escape_research_storage(subject,tmp_path):
+def test_ids_cannot_escape_research_storage(subject):
+    client,jobs=subject
+    assert client.get('/api/research/jobs/not-an-id').status_code==404
+    assert client.get('/api/research/reports/'+'c'*32).status_code==404
+    with pytest.raises(HTTPException) as refused:jobs.dataset('../outside')
+    assert refused.value.status_code==404
+
+
+def test_report_symlinks_cannot_escape_research_storage(subject,tmp_path,create_symlink):
     client,jobs=subject;outside=tmp_path/'outside.json';outside.write_text('{"id":"private-outside","source":"private-source","summary":"private-summary"}')
-    (jobs.root/'reports'/('b'*32+'.json')).symlink_to(outside)
+    create_symlink(jobs.root/'reports'/('b'*32+'.json'),outside)
     assert client.get('/api/research/reports/'+'b'*32).status_code==404
     listed=client.get('/api/research/reports')
     assert listed.status_code==200 and listed.json()=={'reports':[]}
     assert 'private-outside' not in listed.text
-    assert client.get('/api/research/jobs/not-an-id').status_code==404
-    assert client.get('/api/research/reports/'+'c'*32).status_code==404
-    with pytest.raises(Exception):jobs.dataset('../outside')
 
 
-def test_dataset_metadata_symlink_and_broken_report_link_are_not_followed(subject,tmp_path):
+def test_dataset_metadata_symlink_and_broken_report_link_are_not_followed(subject,tmp_path,create_symlink):
     client,jobs=subject;id=imported(client).json()['id']
     sidecar=jobs.path('datasets',id,'.meta.json');outside=tmp_path/'outside.meta.json'
-    sidecar.replace(outside);sidecar.symlink_to(outside)
+    sidecar.replace(outside);create_symlink(sidecar,outside)
     assert client.get('/api/research/datasets').json()=={'datasets':[]}
     assert client.post('/api/research/run',json=assumptions(id)).status_code==404
-    (jobs.root/'reports'/('e'*32+'.json')).symlink_to(tmp_path/'missing.json')
+    create_symlink(jobs.root/'reports'/('e'*32+'.json'),tmp_path/'missing.json')
     assert client.get('/api/research/reports').json()=={'reports':[]}
 
 
