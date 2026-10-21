@@ -1,41 +1,41 @@
 # Validation and acceptance status
 
-## Verified in this Linux cloud instance
+Software checks and evidence supplied by the user are recorded separately. Fixture prices and fake broker responses never establish Exness execution or profitability.
 
-- Python 3.12 virtual environment installation, pinned Python package installation and repeatable npm lockfile installation.
-- 119 automated backend tests (including the original61): risk caps, invalid inputs, non-decimal lot steps, small-account skip, daily loss/drawdown, position/spread/margin/news/stale-quote/emergency guards, all timeframe fixture analysis, pivot confirmation, FVG mitigation, candle validation, persistent duplicates/pending orders, account anchors, authenticated API, no live endpoint, demo-account rejection of live, submission ambiguity and broker-deal verification using fakes, automation idle/failure handling, and backtest signal timing/stop-first costs.
-- Production TypeScript/Vite build plus7 frontend numerical/symbol regression tests (SMA/EMA/Bollinger/Wilder RSI/MACD fixtures, validation, causal history and exact broker selection).
-- Headless Chromium desktop (1440 px) and mobile (320/390 px): login, candle chart, timeframe switching, indicator controls, price/time rectangle drawing with local persistence/undo, independent indicator settings and RSI/MACD panes, corner logo absent with visible attribution, mobile Charts/Analysis/Trade/Journal tabs, emergency entry stop and release, mobile layout without horizontal overflow, token cleared on browser reload. Simulated suffix/history-error/disconnect scenarios verified exact-symbol requests and recoverable selection/diagnostics. Browser errors: none on final check.
-- Running FastAPI serves the built dashboard and authenticated market-analysis requests. Synthetic prices are clearly labelled.
-- 8,200 synthetic M30 candles processed through the backtest and chronological/rolling evaluator. `reports/synthetic-engine-check.json` is an engine-check report, **not** a market-performance report. A synthetic trade or no-trade period does not establish a profitable strategy.
-- Official MetaTrader5 5.0.5488 CPython 3.11 Windows x64 wheel is available from PyPI. It is not runnable in this Linux cloud.
-- Final npm audit: 0 reported vulnerabilities at validation time, including development packages. This is a package-advisory check, not a security certification.
+## Current Linux verification — October 21, 2026
 
-## Not executed / external prerequisites
+- Pinned Python development dependencies, including the optional isolated ML stack, install in the Python 3.12 virtual environment. The official MT5 package is Windows-only and is correctly excluded here.
+- All **320 backend tests** pass. Coverage includes strategy causality, risk caps, minimum-lot skip, broker/account changes, persistent ambiguous submissions, account-scoped fill/exit attribution, restart migrations, protection alerts, calendar gates, read-only observations, research provenance/jobs, chronological evaluation, purged ML comparisons and isolated customer authorization. One dependency deprecation warning remains; there are no skipped tests.
+- Regression checks prevent partial fills from different broker orders being merged across recovery polls, preserve the updated equity risk budget, and stop automation when its consented demo account changes. Missing open-position/exit proof or widened/missing stops activate the entry emergency stop; the code never closes broker positions automatically.
+- All **10 frontend numerical/provenance/cost checks** and the production TypeScript/Vite build pass. Browser checks cover four mobile tabs, external-CSV acknowledgement, fixture rejection, explicit costs, isolated ML report metrics/download, pending-order/ledger rendering, selected-symbol calendar gating and 320/390/844 px layouts. Mock browser scenarios are software checks only.
+- The tested installation script completed end to end. The running built app passed authenticated status/candle/analysis/research checks and actual queued strategy/ML report generation on generated, explicitly unverified CSV data. The ML fixture fit a model but did not promote it. Mobile browser report display/download, tabs, width checks and token reset passed against this running API with zero JavaScript errors. No broker orders were sent.
+- Existing chart/indicator/drawing checks include closed candles, broker precision, SMA/EMA/Bollinger/Wilder RSI/MACD, independent settings, drawing persistence/undo, recoverable exact-symbol history errors and clearing the session token on reload. The corner logo is hidden through the library setting and required textual attribution remains visible.
+- The manifest and home-screen icons are served. No service worker caches authenticated API responses or market prices.
+- The independent customer portal is tested for tenant isolation, expiry/revocation, seats, enrollment, secret hashing and browser cleanup. It is a metadata service with manually issued licenses; it does not enforce local trading licenses or process payments.
 
-- Windows PowerShell setup/start scripts, installation on the user's physical Windows 11 PC and Exness desktop MT5 connection have not been executed here. The user supplied a Windows screenshot showing the initial version installed,61 tests passed and the server running, and confirmed Exness demo login. The upgraded version and actual broker connection still need verification on that machine.
-- Broker account permissions, real contract/tick/volume specs, terminal restarts/reconnection, actual demo orders, live broker retcodes/deal-history propagation and broker SL/TP behavior need Windows/Exness acceptance testing. Mock tests do not establish these work with Exness.
-- No real broker history or economic-calendar feed was provided. There is no real-price backtest, profitability evidence, statistical significance assessment or four-day demo observation yet. The computer and MT5 must remain running during demo monitoring.
-- Fixed UTC OHLC resampling, constant costs and closed-equity drawdown are research approximations, not a broker-accurate tick simulator. See `RULES.md` before interpreting reports.
-- Automated MT5 reconnection uses initialize and connection checks per operation; actual terminal-restart tests remain unrun. Uncertain orders intentionally require manual broker-history reconciliation and block all later submissions.
+## Evidence supplied from the user's Windows PC
 
-## Remaining product work
+- Screenshots show installation, a running localhost dashboard and an initial 61-test run.
+- The October 17 screenshots show an Exness DEMO connection, terminal checks 3/3 and historical-chart checks 7/7 for the selected broker symbol. This confirms connection/history for that version.
+- Those screenshots also show equity/free margin 0.00, disabled Algo Trading and stale quotes while the market was closed. They do not establish that execution prerequisites later passed.
+- Tailscale devices and Serve readiness were shown. An authenticated dashboard on the physical phone, Android home-screen installation and iPhone acceptance remain unverified.
 
-- Validate broker execution and long-term strategy behavior on real history across market regimes. Refine entry definitions only with held-out evaluation.
-- Integrate and test a real news/session calendar before unattended extended operation; manual clearances last at most 15 minutes.
-- General multi-currency backtesting, intratrade equity/margin simulation, broker calendar alignment and accurate variable spread/swap modelling.
-- Additional discretionary ICT/SMC concepts, historical order-block lifecycles, equal-high/low pools, optional M5/M15 confirmation and richer drawing editing.
-- ML probability model with purged chronological splits, calibration and walk-forward baseline comparison, **after** the fixed strategy is validated. No ML model is trained or used by this implementation.
-- Multi-user/account isolation, licensing/subscriptions, PostgreSQL migration, authenticated production deployment and commercial/legal review.
-- Real-money execution is deliberately unavailable. Four demo days cannot justify an automatic live/public launch.
+## Not executed or still missing
 
-## Delivery boundaries
+- New PowerShell helpers and upgraded execution/research features have not been run on the physical Windows PC from this Linux environment. No Windows task, firewall rule, MT5 permission or Tailscale route was changed by cloud commands.
+- No actual demo broker order, protective SL/TP behavior, broker retcode/history propagation, terminal restart/reconnection or recovery result has been verified. Fake-broker tests do not replace those checks.
+- No actual Exness dataset or market-performance report has been supplied. Reports produced from generated fixtures or an explicitly unverified external CSV are engine/UI checks only. The older `reports/synthetic-engine-check.json` is not market evidence.
+- No four-day or longer real demo observation has been completed. The collector records actual measured intervals and gaps; requesting 96 hours does not create 96 hours of evidence.
+- No economic-calendar provider/ingestion adapter is configured. Manual review is the default and expires after at most 15 minutes. Optional calendar-file mode fails closed on missing, stale, malformed or insufficient coverage and cannot be manually overridden.
+- Research currently supports linear USD-profit instruments in USD accounts. Constant costs, UTC H4/D1 aggregation and bar-close floating equity omit broker session/DST parity, tick order, intrabar drawdown, variable costs, margin/stop-outs and exact swap schedules. `live_strategy_parity_validated` stays false.
+- The ML module is an isolated fixed-horizon long forecasting experiment, not the strategy's SL/TP outcome. It never enters the execution path or promotes a model automatically. Single-class/undersized training windows abstain.
+- Billing, local license enforcement, a PostgreSQL multi-user deployment, production capacity/security review and legal/broker release requirements remain outstanding. The private one-terminal trading backend must not be shared as customer isolation.
+- Real-money execution remains unavailable. No strategy, ICT/SMC rule, AI score or short demo period guarantees profit or loss-free trading.
 
-Source is in `/workspace/Forex-boot`; uploaded originals are preserved under `reference/`. GitHub publication is a separate operation from local validation. No changes were made to the user's C: drive from this cloud session. The source archive excludes tokens, databases, dependency directories and generated personal configuration. Cloud setup instructions do not demonstrate a published snapshot or a successful fresh-task restoration.
+## Repeatable verification and next acceptance
 
-Cloud configuration draft: `install_script` and `start_skill` were saved. The running server was restarted and checked through authenticated status/candle/analysis requests. Draft saving does not publish a snapshot. Review and save in environment settings, then publish if you want to retain this cloud setup for future tasks.
+Run `bash scripts/install-cloud.sh` for the pinned cloud setup, numerical frontend checks, production build and Python suite. Start the synthetic-only cloud backend with `bash scripts/start-cloud.sh`; verify `/health`, authenticated status/candles/analysis and the built dashboard internally. Cloud localhost is not a user-facing preview.
 
+On Windows, update the existing checkout and restart analysis. Follow [research](RESEARCH.md) to export real history and enter actual broker cost assumptions, then [acceptance](ACCEPTANCE.md) for funded DEMO permissions, valid signals, broker fills/protection/recovery, physical mobile checks and measured observation. Do not force a trade or remove a pending lock to produce a result. Read [deployment](DEPLOYMENT.md) before optional logon startup and [commercial scope](COMMERCIAL.md) before planning public distribution.
 
-Mobile/weekend update: the read-only report now distinguishes terminal connectivity, historical data, and new-entry readiness. Saturday and weekday stale-quote fixtures verify that no weekday-based broker-session claim is made and new entries remain blocked. A touch-enabled390px portrait and844px landscape Chromium test verified these states and the private-address explanation. Chromium accepted the web-app manifest and both home-screen icon routes.
-
-Android/iPhone home-screen metadata and documentation are included. Physical Android/iPhone installation, Windows Tailscale login, tailnet HTTPS/certificate enablement, the private HTTPS route and browser install prompts have **not** been exercised from this cloud machine. `scripts/enable-mobile.ps1` is supplied for local execution after signing in to Tailscale. No VPN client was installed in the cloud; no user PC firewall, router, Tailscale configuration or broker session was modified here. The helper preserves unrelated Serve routes and refuses a detected existing public Funnel route. No service worker caches authenticated responses or market prices.
+Source and uploaded originals stay in the repository; private databases, tokens, CSVs and personal reports belong under ignored `runtime/`. GitHub publication, saved cloud configuration, environment publication and restoration in a new task are separate outcomes. Cloud configuration saving does not publish or prove fresh-task restoration, and cloud access does not grant access to the user's C: drive.

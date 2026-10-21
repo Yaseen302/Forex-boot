@@ -4,14 +4,18 @@ import time
 from .market import close_time
 from .risk import configured_limits, size, guards
 from .strategy import signal
+from .reconciliation import MAGIC, account_key, confirmed_fill, _deal_payload
+from .news import news_clearance
 
 
-def execute_demo(bridge,store,symbol,frames,enabled=False):
+def execute_demo(bridge,store,symbol,frames,enabled=False,expected_account=None):
     if not enabled: raise ValueError('Demo execution disabled; set ENABLE_DEMO_EXECUTION=1 and restart')
     mt=bridge.mt
     terminal=bridge.connect()
     a=bridge.account()
     if a.trade_mode!=mt.ACCOUNT_TRADE_MODE_DEMO: raise ValueError('Only broker-confirmed DEMO accounts are supported; live is blocked')
+    if expected_account is not None and account_key(a)!=expected_account:
+        raise ValueError('Account changed from the explicitly consented demo account')
     if not a.trade_allowed or not a.trade_expert or not terminal.trade_allowed or getattr(terminal,'tradeapi_disabled',False):
         raise ValueError('Account/terminal automated trading permission is disabled')
     limits=configured_limits()
@@ -51,15 +55,15 @@ def execute_demo(bridge,store,symbol,frames,enabled=False):
     reasons=guards(equity=a.equity,day_equity=anchors['day_equity'],peak_equity=anchors['peak_equity'],
                    positions=len(positions)+len(orders),spread_points=(tick.ask-tick.bid)/info.point,
                    tick_age=now-tick.time,margin_free=a.margin_free,margin_needed=margin,entry=entry,stop=stop,target=target,
-                   side=s['side'],news_clear=store.get('news_clear_until',0)>now,emergency=store.get('emergency',False),limits=limits)
+                   side=s['side'],news_clear=news_clearance(store,symbol,now)['allowed'],emergency=store.get('emergency',False),limits=limits)
     if reasons: raise ValueError('; '.join(reasons))
     # FOK prevents silent partial fills. Refuse brokers without FOK rather than guessing.
     if not info.filling_mode & 1: raise ValueError('Symbol does not support FOK execution; adapter needs broker-specific validation')
+    key=hashlib.sha256(f'{a.server}:{a.login}:{symbol}:{s["time"]}:{s["side"]}'.encode()).hexdigest()
     request=dict(action=mt.TRADE_ACTION_DEAL,symbol=symbol,volume=sizing['volume'],type=kind,price=entry,sl=stop,tp=target,
-                 deviation=int(limits.slippage_points),magic=260017,comment='ForexLab demo',type_time=mt.ORDER_TIME_GTC,type_filling=mt.ORDER_FILLING_FOK)
+                 deviation=int(limits.slippage_points),magic=MAGIC,comment='FL:'+key[:24],type_time=mt.ORDER_TIME_GTC,type_filling=mt.ORDER_FILLING_FOK)
     check=mt.order_check(request)
     if check is None or check.retcode!=0: raise ValueError('Broker order_check rejected the request')
-    key=hashlib.sha256(f'{a.server}:{a.login}:{symbol}:{s["time"]}:{s["side"]}'.encode()).hexdigest()
     current=bridge.account()
     if current.login!=a.login or current.server!=a.server or current.trade_mode!=mt.ACCOUNT_TRADE_MODE_DEMO:
         raise ValueError('Account changed during order evaluation')
@@ -96,21 +100,34 @@ def execute_demo(bridge,store,symbol,frames,enabled=False):
                    positions=len(exposure)+len(pending),spread_points=(fresh.ask-fresh.bid)/info.point,
                    tick_age=now-fresh.time,margin_free=current.margin_free,margin_needed=fresh_margin,
                    entry=fresh_entry,stop=stop,target=target,side=s['side'],
-                   news_clear=store.get('news_clear_until',0)>now,emergency=store.get('emergency',False),limits=limits)
+                   news_clear=news_clearance(store,symbol,now)['allowed'],emergency=store.get('emergency',False),limits=limits)
     if reasons: raise ValueError('; '.join(reasons))
-    sizing=dict(sizing,equity_at_submission=current.equity,
+    sizing=dict(sizing,risk_budget=fresh_size['risk_budget'],equity_at_submission=current.equity,
+                commission_per_lot=limits.commission_per_lot,slippage_loss_per_lot=abs(fresh_slip),
                 estimated_loss=sizing['volume']*(abs(fresh_loss)+abs(fresh_slip)+limits.commission_per_lot))
-    store.reserve(key,request)
+    submitted_at=time.time()
+    store.reserve(key,request,metadata=dict(account=account_key(current),login=str(current.login),server=current.server,
+                                          trade_mode=int(current.trade_mode),submitted_at=submitted_at,risk=sizing))
     # From this point an exception/ambiguous response intentionally leaves a durable pending record.
-    result=mt.order_send(request)
+    try:
+        result=mt.order_send(request)
+    except Exception as exc:
+        store.log('submission_transport_error',dict(signal_id=key,error_type=type(exc).__name__))
+        raise RuntimeError('Submission status unknown; broker transport failed; do not retry') from exc
     if result is None: raise RuntimeError('Submission status unknown; inspect broker history, do not retry')
     payload=dict(retcode=int(result.retcode),order=int(result.order),deal=int(result.deal),volume=float(result.volume),price=float(result.price),risk=sizing)
+    store.response(key,payload)
     if result.retcode==mt.TRADE_RETCODE_DONE:
         deals=mt.history_deals_get(ticket=result.deal)
-        verified=deals and any(d.ticket==result.deal and d.symbol==symbol and d.type==kind and abs(d.volume-sizing['volume'])<1e-8 for d in deals)
+        verified=confirmed_fill(deals,request,submitted_at,time.time(),ticket=result.deal,order=result.order)
+        after=bridge.account()
+        if account_key(after)!=account_key(current) or after.trade_mode!=mt.ACCOUNT_TRADE_MODE_DEMO:
+            raise RuntimeError('Account changed while verifying deal; submission remains pending')
         if not verified:
             store.log('fill_requires_reconciliation',dict(signal_id=key,**payload))
             raise RuntimeError('Deal history has not confirmed the fill; submission remains pending')
+        for deal in verified:
+            store.record_deal(account_key(current),key,_deal_payload(deal))
         store.finish(key,'filled',payload)
     else:
         store.log('submission_requires_reconciliation',dict(signal_id=key,**payload))

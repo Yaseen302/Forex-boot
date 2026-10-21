@@ -17,11 +17,14 @@ def harness(tmp_path,monkeypatch):
     mt.positions_get=lambda:[];mt.orders_get=lambda:[]
     mt.order_calc_profit=lambda k,s,v,e,x:(x-e)*100000
     mt.order_calc_margin=lambda *args:100
-    mt.history_deals_get=lambda **kw:[NS(ticket=456,symbol='EURUSD',type=0,volume=mt.last_volume)]
+    mt.history_deals_get=lambda **kw:[NS(ticket=456,order=123,position_id=789,symbol='EURUSD',type=0,entry=0,
+                                       volume=mt.last_volume,price=1.1001,time=int(time.time()),
+                                       magic=mt.last_request['magic'],comment=mt.last_request['comment'])]
     mt.last_volume=0
     mt.order_check=lambda r:NS(retcode=0)
     def send(r):
         mt.last_volume=r['volume']
+        mt.last_request=r.copy()
         return NS(retcode=10009,order=123,deal=456,volume=r['volume'],price=r['price'])
     mt.order_send=send
     bridge=NS(mt=mt,connect=lambda:terminal,account=lambda:a)
@@ -42,6 +45,14 @@ def test_live_refused_before_submission(harness):
     harness[3].trade_mode=2
     harness[4].order_send=lambda r:pytest.fail('Must not send live order')
     with pytest.raises(ValueError,match='DEMO'):call(harness)
+
+
+def test_worker_consent_is_checked_inside_execution_before_any_submission(harness):
+    bridge,store,frames,_,mt=harness
+    mt.order_send=lambda r:pytest.fail('A different demo account has no execution consent')
+    with pytest.raises(ValueError,match='consented demo account'):
+        execute_demo(bridge,store,'EURUSD',frames,True,'demo:456')
+    assert store.orders()==[]
 
 
 def test_valid_demo_and_duplicate(harness):
@@ -117,3 +128,17 @@ def test_broker_check_changes_are_revalidated_before_send(harness,changed,reason
     mt.order_send=lambda r:pytest.fail('Changed broker state must prevent submission')
     with pytest.raises(ValueError,match=reason): call(harness)
     assert store.orders()==[]
+
+
+def test_unchanged_lot_step_still_persists_the_fresh_equity_risk_budget(harness):
+    _,store,_,account,mt=harness
+    def check(request):
+        account.equity=9990
+        return NS(retcode=0)
+    mt.order_check=check
+    result=call(harness)
+    assert result['volume']==pytest.approx(.19)
+    risk=store.orders()[0]['metadata']['risk']
+    assert risk['equity_at_submission']==9990
+    assert risk['risk_budget']==pytest.approx(24.975)
+    assert risk['estimated_loss']<=risk['risk_budget']

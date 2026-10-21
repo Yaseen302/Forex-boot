@@ -52,6 +52,6 @@ To stop a configured Serve route, inspect `tailscale serve status` and disable t
 3. Start read-only analysis, select the exact broker symbol and run connection checks.
 4. Verify historical charts and indicators, including when the market is closed. Understand why new entries remain blocked.
 5. Configure their private phone route and add the web terminal to the home screen.
-6. During an open broker session, inspect current quote/history and all remaining readiness issues. Demo automation is a separate explicit opt-in and still needs manual economic-calendar clearance in this version.
+6. During an open broker session, inspect current quote/history and all remaining readiness issues. Demo automation is a separate explicit opt-in and still needs the configured news gate (expiring manual economic-calendar review by default).
 
-This is one account per backend, not a customer account-sharing platform. Giving several customers access to one running instance would expose the same account and controls. Commercial customer isolation, licenses and self-service account onboarding are separate work. Four demo days do not prove profitability, and no strategy guarantees profits or zero losses.
+This is one account per backend, not a customer account-sharing platform. Giving several customers access to one running instance would expose the same account and controls. A separate license/device control-plane prototype is documented in [COMMERCIAL.md](COMMERCIAL.md); it does not isolate this shared trading backend or make it a public customer platform. Four demo days do not prove profitability, and no strategy guarantees profits or zero losses.

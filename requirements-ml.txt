@@ -1,0 +1,7 @@
+# Optional, isolated offline research stack. Supports Python 3.11 and 3.12.
+# Install alongside the application's existing requirements, never in the MT5 loop.
+scikit-learn==1.7.2
+joblib==1.5.2
+numpy==2.2.6
+scipy==1.15.3
+threadpoolctl==3.6.0

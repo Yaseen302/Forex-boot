@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ForexLab · Customer portal</title>
+  <link rel="stylesheet" href="/portal.css">
+  <script src="/portal.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><p class="eyebrow">FOREXLAB / CUSTOMER PORTAL</p><h1>Your research devices.</h1><p>This portal manages licenses and demo research summaries. Your Windows bridge keeps its own broker connection.</p></header>
+    <p id="message" role="status" aria-live="polite"></p>
+    <section id="login-panel">
+      <h2>Open your workspace</h2>
+      <form id="login-form">
+        <label for="license-key">License key supplied by your administrator</label>
+        <input id="license-key" type="password" autocomplete="off" spellcheck="false" minlength="32" maxlength="256" required>
+        <button type="submit">Open workspace</button>
+      </form>
+      <p class="muted">The key stays in this page's memory until you sign out or close the page. Never enter an MT5 password here.</p>
+    </section>
+    <div id="workspace" hidden>
+      <nav><button id="refresh" type="button">Refresh</button><button id="logout" type="button" class="secondary">Sign out</button></nav>
+      <section><h2 id="customer-name">Your license</h2><dl id="license-info"></dl></section>
+      <section><h2>Windows bridges</h2><p class="muted">One enrolled device consumes one seat. Each customer needs a separate Windows bridge and MT5 login. Revoke a device before replacing it.</p><div id="devices"></div>
+        <form id="enroll-form"><label for="device-label">New device label</label><input id="device-label" maxlength="80" required placeholder="My Windows demo PC"><button type="submit">Enroll device</button></form>
+        <div id="new-credential" hidden><h3>Save this device credential securely now</h3><p>It is shown once. Configure it only on the Windows bridge that will submit demo summaries. This portal does not install or control the bridge.</p><p id="device-id"></p><code id="device-key"></code><button id="hide-key" type="button" class="secondary">I have saved it · Hide credential</button></div>
+      </section>
+      <section><h2>Demo research performance</h2><p class="muted">Self-reported by your enrolled devices; not independently verified. Currencies stay separate. These values are not a guarantee of returns or an account equity curve.</p><div id="performance"></div></section>
+      <footer>License and device revocation stop metadata access. Check MT5 separately to manage broker positions. Public subscription billing and broker automation are separate systems.</footer>
+    </div>
+  </main>
+</body>
+</html>

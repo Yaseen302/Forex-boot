@@ -2,6 +2,8 @@
 
 Yeh guide aapke apne Windows PC ke liye hai. Cloud assistant aapke C: drive ko access nahi kar sakta aur aapke PC par software install hone ka daawa nahi karta.
 
+Agar Git/Python/Node aur ForexLab pehle se installed hain, dobara install na karein: neeche **Update the existing installation** follow karein. October 17 screenshots ne dashboard, MT5 demo connection aur history confirm ki thi; later features ka Windows acceptance alag baqi hai.
+
 ## 1. Software install karein
 
 1. Microsoft Store/App Installer se `winget` available hona chahiye. Windows Terminal mein neeche commands aik aik karke chalayein. Installer agar UAC poochay to usay apne PC par review karein.
@@ -57,14 +59,14 @@ Read-only checks ke baad:
 powershell -ExecutionPolicy Bypass -File .\scripts\start-windows.ps1 -Source mt5 -EnableDemo
 ```
 
-MT5 mein Tools > Options > Expert Advisors ke under algorithmic trading permissions check karein. Agar "Disable automated trading through the external Python API" enabled ho to demo execution ke liye usay uncheck karna par sakta hai; sirf read-only data ke liye is permission ko badalne ki zaroorat nahi. MT5 terminal aur broker account ki automated/expert trading permissions check karein. Broker-confirmed **demo** account zaroori hai; real account ko code reject karega. Sahi broker symbol select karein. Economic calendar khud review karein, phir 15-minute clearance button use karein. Is version mein automatic news provider nahi hai; clearance expire ho to koi nayi entry nahi hoti.
+MT5 mein Tools > Options > Expert Advisors ke under algorithmic trading permissions check karein. Agar "Disable automated trading through the external Python API" enabled ho to demo execution ke liye usay uncheck karna par sakta hai; sirf read-only data ke liye is permission ko badalne ki zaroorat nahi. MT5 terminal aur broker account ki automated/expert trading permissions check karein. Broker-confirmed **demo** account zaroori hai; real account ko code reject karega. Sahi broker symbol select karein. Default manual mode mein economic calendar khud review karein, phir 15-minute clearance button use karein; expiry par new entry band rehti hai. Optional provider-file calendar gate ke liye [NEWS.md](NEWS.md) follow karein. Provider downloader/credentials yahan configured nahi hain.
 
 - "Evaluate & submit one demo order" server par analysis aur saare checks dobara karta hai. `WAIT` ya minimum-lot risk failure par trade force na karein.
 - "Enable demo automation" har 30 seconds check karta hai. News clearance expire hone, emergency, disagreement ya risk failure par trade nahi karta. App restart par automation OFF ho jati hai.
 - Emergency stop sirf **nayi entries** rokta hai. Existing broker positions close nahi karta; SL/TP broker par rehte hain. Existing positions ko MT5 mein monitor/manage karein.
 - $10 balance par 0.25% sirf $0.025 risk hai. Broker minimum lot aksar is se zyada risk karega, is liye **skip** sahi outcome hai.
 
-Agar timeout/unknown submission aaye to retry ya database delete na karein. MT5 Trade aur History tabs inspect karein. `GET /api/orders` aur SQLite ledger ka backup rakhein. Pending record automatic retry block karta hai. Broker history ko local signal se match karke developer reconciliation karna baqi manual operation hai; UI unlock button nahi diya gaya.
+Agar timeout/unknown submission aaye to retry ya database delete na karein. MT5 Trade aur History tabs inspect karein. `GET /api/orders` aur SQLite ledger ka backup rakhein. Pending record automatic retry block karta hai. Trade view mein **Sync broker history** read-only reconciliation chalata hai. Exact account/correlation/history match par hi resolution hota hai; missing history ya partial/uncertain fill lock rehta hai. Ye button retry ya manual unlock nahi karta. Broker ke actual position, SL/TP aur fill ko inspect karein.
 
 ## 5. Four-day demo observation
 
@@ -80,7 +82,7 @@ Pehle local Windows workflow verify karein. Backend default sirf loopback par su
 
 The updated terminal has mobile Charts / Analysis / Trade / Journal navigation. Indicator settings include independently configurable EMA, SMA, Bollinger Bands, Wilder RSI and MACD. They describe completed candles; they do not bypass server-side strategy/risk rules. The small chart-corner logo is disabled using the library's supported option; visible footer attribution remains.
 
-Your previous screenshots showed the original application installed, built and passed 61 tests on Windows. This update still needs to be installed and connected to your actual Exness terminal; the cloud cannot inspect your Windows session. You confirmed the MT5 demo account is logged in, but that confirmation is not a verified API connection.
+Your earlier screenshots showed installation/build/tests on Windows and subsequently a broker-confirmed DEMO connection with terminal/history checks passing. That verifies those checks at that time, not order execution. The same screenshot showed 0.00 equity/free margin and disabled Algo Trading; current virtual funding/permissions and later updates still need verification. The cloud cannot inspect your Windows session.
 
 ### Update the existing installation
 
@@ -122,3 +124,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-windows.ps1 
 Select the exact broker symbol, inspect account/demo mode and connection checks, review the economic calendar yourself, grant a 15-minute news clearance and explicitly enable demo automation. The worker checks every 30 seconds, enters only on aligned fresh D1/H4/M30 signals, and never forces a trade to pass a test. Existing positions or a small-account minimum-lot conflict block new entries. Automation resets OFF on restart. No order is sent just by updating or running the connection checker.
 
 The mobile layout works at phone widths. A phone's own localhost is a different machine: actual phone access to the Windows backend still needs a private authenticated HTTPS route such as Tailscale Serve; that network deployment is not installed by this update. The optional scripts/enable-mobile.ps1 helper and docs/MOBILE.md now guide a private Tailscale Serve setup without opening the raw API port. Do not expose the raw API port publicly.
+
+## Reports, monitoring and next acceptance
+
+After updating, use **Analysis → Research & reports** to export closed M30 broker history, enter explicit costs and run chronological or isolated ML research. No orders are placed by that workflow. See [RESEARCH.md](RESEARCH.md) for exact CSV/specification requirements and command-line examples.
+
+Read-only long-duration observation and private support reports are documented in [ACCEPTANCE.md](ACCEPTANCE.md). Optional analysis-only Task Scheduler setup is in [DEPLOYMENT.md](DEPLOYMENT.md). These scripts have not been run on your actual Windows PC by the cloud; a requested 96-hour session is not a completed four-day test. New orders still require a valid fresh signal, virtual demo equity, broker permissions, news clearance and every risk guard.
