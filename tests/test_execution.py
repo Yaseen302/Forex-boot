@@ -88,6 +88,38 @@ def test_stale_quote_refused(harness):
     with pytest.raises(ValueError,match='Stale quote'):call(harness)
 
 
+def test_new_quote_received_after_initial_clock_sample_can_execute(harness,monkeypatch):
+    import backend.execution as execution
+    clock=[1780000205.8]
+    monkeypatch.setattr(execution.time,'time',lambda:clock[0])
+    def quote(symbol):
+        clock[0]+=.4
+        return NS(bid=1.1,ask=1.1001,time=int(clock[0]))
+    harness[4].symbol_info_tick=quote
+    assert call(harness)['deal']==456
+
+
+def test_quote_expiring_during_sizing_is_rejected_before_order_check(harness,monkeypatch):
+    import backend.execution as execution
+    clock=[1780000205.8]
+    monkeypatch.setattr(execution.time,'time',lambda:clock[0])
+    mt=harness[4]
+    mt.symbol_info_tick=lambda symbol:NS(bid=1.1,ask=1.1001,time=1780000176)
+    def margin(*args):
+        clock[0]+=2
+        return 100
+    mt.order_calc_margin=margin
+    mt.order_check=lambda request:pytest.fail('Expired quote must fail before order_check')
+    with pytest.raises(ValueError,match='Stale quote'):call(harness)
+    assert harness[1].orders()==[]
+
+
+def test_future_quote_is_not_tolerated_by_execution(harness):
+    harness[4].symbol_info_tick=lambda symbol:NS(bid=1.1,ask=1.1001,time=time.time()+.2)
+    harness[4].order_send=lambda request:pytest.fail('Never submit a future quote')
+    with pytest.raises(ValueError,match='Stale quote'):call(harness)
+
+
 def test_emergency_refused(harness):
     harness[1].set('emergency',True)
     with pytest.raises(ValueError,match='Emergency'):call(harness)

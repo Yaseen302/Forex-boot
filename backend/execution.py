@@ -52,6 +52,9 @@ def execute_demo(bridge,store,symbol,frames,enabled=False,expected_account=None)
     margin=mt.order_calc_margin(kind,symbol,sizing['volume'],entry)
     if margin is None: raise ValueError('Cannot calculate margin')
     anchors=store.anchors(f'{a.server}:{a.login}',a.equity)
+    # Sizing and terminal requests may take time; assess this quote against
+    # a clock sampled after it was received, never the evaluation start.
+    now=time.time()
     reasons=guards(equity=a.equity,day_equity=anchors['day_equity'],peak_equity=anchors['peak_equity'],
                    positions=len(positions)+len(orders),spread_points=(tick.ask-tick.bid)/info.point,
                    tick_age=now-tick.time,margin_free=a.margin_free,margin_needed=margin,entry=entry,stop=stop,target=target,

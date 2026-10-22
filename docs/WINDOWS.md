@@ -53,6 +53,16 @@ Dashboard par account, equity, broker symbols aur D1/H4/M30 data check karein. L
 
 ## 4. Demo orders — explicit opt-in
 
+### Quote timing and the first demo entry
+
+The October 22 screenshots showed a connected terminal/history, quote age **-0.2 seconds**, an M30 candle age of **320 seconds**, missing calendar clearance and automation OFF. They do not show a submitted or filled order.
+
+The quote/history checker now samples the PC clock after each terminal read, and execution refreshes its first risk-check clock after sizing. This prevents a terminal request crossing a second/candle boundary from comparing new data with an older clock sample. Genuinely future quotes and quotes older than the configured maximum still block entries. If a negative age persists, use Windows **Settings → Time & language → Date & time → Set time automatically → Sync now**, then rerun the connection check. Do not change the PC clock to match a broker candle or bypass the quote check.
+
+**M30 entry window** means the first five minutes after a completed M30 candle, not a failed terminal connection. At 320 seconds, the entry window has already expired; wait for the next M30 close. A fresh BUY/SELL setup, calendar clearance, sizing and all other execution checks remain necessary in the next window.
+
+After updating the existing checkout and rebuilding the frontend, start with `-Source mt5 -EnableDemo`, paste the new session token, and verify DEMO mode and the exact broker symbol. Review a reliable economic calendar before granting the 15-minute clearance, then explicitly choose **Enable demo automation**. Its RUNNING status means monitoring; it is not evidence that an order was filled. Calendar expiry blocks new entries even while the worker remains running. Verify an actual ticket, volume and protective SL/TP in MT5 Trade/History and inspect the app's execution ledger. Do not retry an ambiguous submission.
+
 Read-only checks ke baad:
 
 ```powershell

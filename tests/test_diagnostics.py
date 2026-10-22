@@ -274,3 +274,40 @@ def test_future_quote_or_history_clock_mismatch_blocks_demo(bridge):
     assert report['ready_for_data'] and not report['ready_for_demo']
     assert check(report,'quote')['status']=='fail'
     assert check(report,'freshness_M30')['status']=='fail'
+
+
+def test_terminal_call_crossing_candle_boundary_uses_observation_time(bridge,monkeypatch):
+    import backend.diagnostics as diagnostics
+    boundary=NOW-5
+    clock=[boundary-.2]
+    monkeypatch.setattr(diagnostics.time,'time',lambda:clock[0])
+    def quote(symbol):
+        clock[0]=boundary+.2
+        return NS(bid=1.1,ask=1.1001,time=boundary)
+    bridge.mt.symbol_info_tick=quote
+    report=bridge.diagnostics('EURUSDm')
+    assert report['checked_at']==boundary-.2
+    assert report['quote']['age_seconds']==pytest.approx(.2)
+    assert report['history']['M30']['age_seconds']==pytest.approx(.2)
+    assert report['ready_for_demo']
+
+
+def test_subsecond_future_quote_still_blocks_demo(bridge,monkeypatch):
+    import backend.diagnostics as diagnostics
+    monkeypatch.setattr(diagnostics.time,'time',lambda:NOW-.2)
+    bridge.mt.tick.time=NOW
+    report=bridge.diagnostics('EURUSDm')
+    assert report['quote']['age_seconds']==pytest.approx(-.2)
+    assert check(report,'quote')['status']=='fail'
+    assert not report['ready_for_demo']
+
+
+@pytest.mark.parametrize('age,expected',[(300,'pass'),(301,'fail'),(320,'fail')])
+def test_m30_entry_window_boundary_remains_five_minutes(bridge,age,expected):
+    boundary=NOW-5
+    bridge.mt.tick.time=boundary+age
+    report=bridge.diagnostics('EURUSDm',now=boundary+age)
+    entry=check(report,'freshness_M30')
+    assert entry['status']==expected
+    assert entry['title']=='M30 entry window'
+    if expected=='fail':assert 'next M30 close' in entry['action']

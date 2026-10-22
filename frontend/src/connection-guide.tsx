@@ -12,6 +12,7 @@ export function ConnectionGuide({source,connected,symbol,report,checking,onCheck
  const terminalConnected=report?.connected??(terminalCheck?terminalCheck.status==='pass':connected);
  const quoteCheck=report?.checks.find(check=>check.id==='quote');
  const activity=report?.market_activity?.state??(quoteCheck?(quoteCheck.status==='pass'?'fresh':'stale'):undefined);
+ const clockMismatch=(report?.market_activity?.quote_age_seconds??0)<0;
  const historyChecks=report?.checks.filter(check=>check.id.startsWith('history_'))??[];
  const historyReady=historyChecks.length>0&&historyChecks.every(check=>check.status==='pass');
  const missingSymbol=report?.checks.some(check=>check.id==='symbol'&&check.status==='fail');
@@ -23,13 +24,13 @@ export function ConnectionGuide({source,connected,symbol,report,checking,onCheck
  ];
  return <section id="connection-guide" className="connection-guide" aria-labelledby="connection-guide-title">
   <div className="connect-heading"><div><span className="eyebrow">GET CONNECTED</span><h3 id="connection-guide-title">{summary}</h3></div><span className="connect-readonly">READ-ONLY TEST</span></div>
-  <p className="connect-weekend">You can connect on Saturday. MT5 login, account details and available historical charts can work while forex trading is paused. The test below sends no orders.</p>
+  <p className="connect-weekend">MT5 login, account details and available historical charts can work even while forex trading is paused. The test below sends no orders.</p>
   <div className="connection-stages" aria-label="Connection readiness">
    <div><span className={'stage-light '+(terminalConnected?'good':report||synthetic?'pending':'unknown')}/><div><b>1 · Terminal</b><span>{terminalConnected?'Broker connected':synthetic?'Synthetic preview only':report?'Needs connection':'Not verified yet'}</span></div></div>
    <div><span className={'stage-light '+(historyReady&&report?.ready_for_data?'good':report?'pending':'unknown')}/><div><b>2 · Charts & history</b><span>{historyReady&&report?.ready_for_data?'Historical data available':report?'Review symbol / history checks':'Run the read-only test'}</span></div></div>
    <div><span className={'stage-light '+(report?.ready_for_demo?'good':report?'pending':'unknown')}/><div><b>3 · New entries</b><span>{report?.ready_for_demo?'Connection checks passed':activity==='stale'?'Waiting for fresh market data':report?'Blocked until checks pass':'Not verified yet'}</span></div></div>
   </div>
-  {report&&activity!=='fresh'&&<div className="market-pause" role="status"><b>{activity==='stale'?'No fresh quotes; market may be closed':'Fresh quotes are unavailable'}</b><p>{report.market_activity?.notice||'The broker feed may be paused, the market may be closed, or connectivity needs attention. Check the report; stale prices do not prove that MT5 is disconnected.'} Available historical candles can still be viewed. New entries remain blocked.</p></div>}
+  {report&&activity!=='fresh'&&<div className="market-pause" role="status"><b>{clockMismatch?'Quote timing needs attention':activity==='stale'?'No fresh quotes; market may be closed':'Fresh quotes are unavailable'}</b><p>{report.market_activity?.notice||'The broker feed may be paused, the market may be closed, or connectivity needs attention. Check the report; stale prices do not prove that MT5 is disconnected.'} Available historical candles can still be viewed. New entries remain blocked.</p></div>}
   <details className="connection-walkthrough" open={!terminalConnected}>
    <summary>Simple setup · teach someone in four steps</summary>
    <ol>
